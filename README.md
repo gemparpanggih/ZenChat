@@ -1,4 +1,4 @@
-# Chat API
+# ZenChat
 
 Full-featured chat API built with **Express 5**, **Socket.IO**, **Prisma**, and **TypeScript**.
 

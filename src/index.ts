@@ -10,7 +10,7 @@ async function main() {
   attachSocket(server);
 
   server.listen(env.PORT, () => {
-    console.log(`🚀 Chat API listening on http://localhost:${env.PORT}`);
+    console.log(`🚀 ZenChat listening on http://localhost:${env.PORT}`);
     console.log(`   Health check: http://localhost:${env.PORT}/health`);
   });
 }

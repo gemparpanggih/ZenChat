@@ -51,7 +51,7 @@ async function main() {
     data: [
       { conversationId: conversation.id, senderId: alice.id, content: 'Hey Bob! 👋' },
       { conversationId: conversation.id, senderId: bob.id, content: 'Hey Alice, how are you?' },
-      { conversationId: conversation.id, senderId: alice.id, content: 'Building a chat API 🚀' },
+      { conversationId: conversation.id, senderId: alice.id, content: 'Building ZenChat 🚀' },
     ],
   });
 
