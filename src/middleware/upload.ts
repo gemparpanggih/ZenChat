@@ -18,12 +18,28 @@ const storage = multer.diskStorage({
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
+/**
+ * Only these extensions are ever persisted. The client-supplied filename is
+ * otherwise untrusted: accepting arbitrary extensions would let an attacker
+ * upload e.g. .html/.svg that gets served as active content (stored XSS).
+ * SVG is intentionally excluded (scripts can run inside it).
+ */
+const ALLOWED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
+
 export const upload = multer({
   storage,
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(badRequestError('Only image uploads are allowed'));
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!file.mimetype.startsWith('image/')) {
+      cb(badRequestError('Only image uploads are allowed'));
+      return;
+    }
+    if (!ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
+      cb(badRequestError('Image format not allowed (jpg, jpeg, png, gif, webp)'));
+      return;
+    }
+    cb(null, true);
   },
 });
 

@@ -25,6 +25,11 @@ export async function logout(req: Request, res: Response) {
   res.status(204).end();
 }
 
+export async function logoutAll(req: Request, res: Response) {
+  await authService.revokeAll(req.user!.id);
+  res.status(204).end();
+}
+
 export async function me(req: Request, res: Response, next: NextFunction) {
   try {
     const user = await authService.getMe(req.user!.id);

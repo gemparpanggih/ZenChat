@@ -4,8 +4,8 @@ Full-featured chat API built with **Express 5**, **Socket.IO**, **Prisma**, and 
 
 ## Features
 
-- **Auth**: register / login (email or username) / refresh (rotating refresh tokens) / logout / me
-- **Users**: search, profile update, avatar upload
+- **Auth**: register / login (email or username) / refresh (rotating refresh tokens) / logout / logout-all / me
+- **Users**: search, profile update, avatar upload (safe image formats only)
 - **Conversations**: direct (1:1, auto-reuses existing DM) and groups (roles: owner / admin / member)
 - **Messages**: send, cursor-paginated history, edit, soft-delete, read receipts + unread counts
 - **Friends**: request → accept/decline → remove
@@ -73,6 +73,7 @@ All routes under `/api` except auth are protected with `Authorization: Bearer <a
 | POST   | `/api/auth/login`                      | `{ identifier, password }`           |
 | POST   | `/api/auth/refresh`                    | Rotate refresh token                 |
 | POST   | `/api/auth/logout`                     | Revoke refresh token                 |
+| POST   | `/api/auth/logout-all`                 | Revoke all refresh tokens (auth)     |
 | GET    | `/api/auth/me`                         | Current user                         |
 | GET    | `/api/users?q=`                        | Search users                         |
 | PATCH  | `/api/users/me`                        | Update displayName / bio             |
@@ -96,6 +97,15 @@ All routes under `/api` except auth are protected with `Authorization: Bearer <a
 | DELETE | `/api/friends/:friendId`               | Remove friend                        |
 
 Errors use the shape `{ error: { code, message, details? } }`.
+
+## Security
+
+- **Rate limiting** (express-rate-limit): `/api/auth/*` → 20 req / 15 min per IP; general API → 300 req / 15 min; message & friend mutations → 60 req / min. Skipped when `NODE_ENV=test`.
+- **Uploads**: only `jpg/jpeg/png/gif/webp` extensions are accepted (SVG/HTML rejected — stored-XSS protection). Files served from `/uploads` with `nosniff`.
+- **PII**: `email` is only returned for the user's own profile (`/me`, `updateMe`, login/register). Search, public profiles, conversation members, and message senders never expose email.
+- **Passwords**: bcrypt (cost 12). Login runs a dummy bcrypt compare when the account doesn't exist to blunt the timing oracle.
+- **Tokens**: HS256 JWT, access 15 min, rotating single-use refresh tokens (SHA-256 hash stored). `logout-all` revokes every session.
+- **Headers**: Helmet (CSP, HSTS, nosniff, frame-ancestors). Set a real `CLIENT_ORIGIN` in production (a startup warning fires when it's `*`).
 
 ## Socket.IO
 

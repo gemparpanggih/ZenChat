@@ -79,6 +79,13 @@ export async function updateMessage(userId: string, messageId: string, content: 
   if (!message || message.deletedAt) throw notFoundError('Message not found');
   if (message.senderId !== userId) throw forbiddenError('Only the sender can edit a message');
 
+  // The sender must still be a member (leaving/being removed revokes write access).
+  const member = await prisma.conversationMember.findUnique({
+    where: { conversationId_userId: { conversationId: message.conversationId, userId } },
+    select: { id: true },
+  });
+  if (!member) throw notFoundError('Conversation not found');
+
   const updated = await prisma.message.update({
     where: { id: messageId },
     data: { content, edited: true },

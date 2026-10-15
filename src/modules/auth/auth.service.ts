@@ -2,7 +2,7 @@ import { prisma } from '../../config/db.js';
 import { env } from '../../config/env.js';
 import { conflictError, unauthorizedError } from '../../lib/ApiError.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
-import { pickPublicUser, publicUserSelect } from '../../lib/select.js';
+import { pickSelfUser, selfUserSelect } from '../../lib/select.js';
 import {
   hashToken,
   parseDurationToMs,
@@ -47,7 +47,7 @@ export async function register(input: {
       passwordHash,
       displayName: input.displayName,
     },
-    select: publicUserSelect,
+    select: selfUserSelect,
   });
   const tokens = await issueTokens(user as User);
   return { user, ...tokens };
@@ -57,12 +57,22 @@ export async function login(input: { identifier: string; password: string }) {
   const user = await prisma.user.findFirst({
     where: { OR: [{ email: input.identifier }, { username: input.identifier }] },
   });
-  if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
+
+  // Constant-time-ish: always run a bcrypt comparison so the response time does
+  // not reveal whether the account exists (timing oracle / enumeration).
+  if (!user) {
+    await verifyPassword(input.password, DUMMY_HASH);
+    throw unauthorizedError('Invalid email/username or password');
+  }
+  if (!(await verifyPassword(input.password, user.passwordHash))) {
     throw unauthorizedError('Invalid email/username or password');
   }
   const tokens = await issueTokens(user);
-  return { user: pickPublicUser(user), ...tokens };
+  return { user: pickSelfUser(user), ...tokens };
 }
+
+// bcrypt hash of a random throwaway string; only used to equalize timing.
+const DUMMY_HASH = '$2b$12$YpH/otivfXIZ8GB8nRA7VeQaaibtwMhxDHI8TP4dU2qoXmfW2F8ve';
 
 export async function refresh(refreshToken: string) {
   try {
@@ -82,7 +92,7 @@ export async function refresh(refreshToken: string) {
   // Rotation: the old token is single-use.
   await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
   const tokens = await issueTokens(stored.user);
-  return { user: pickPublicUser(stored.user), ...tokens };
+  return { user: pickSelfUser(stored.user), ...tokens };
 }
 
 export async function revoke(refreshToken: string): Promise<void> {
@@ -92,8 +102,15 @@ export async function revoke(refreshToken: string): Promise<void> {
   });
 }
 
+export async function revokeAll(userId: string): Promise<void> {
+  await prisma.refreshToken.updateMany({
+    where: { userId, revoked: false },
+    data: { revoked: true },
+  });
+}
+
 export async function getMe(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: publicUserSelect });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: selfUserSelect });
   if (!user) throw unauthorizedError('User not found');
   return user;
 }

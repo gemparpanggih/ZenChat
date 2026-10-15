@@ -12,6 +12,12 @@ async function main() {
   server.listen(env.PORT, () => {
     console.log(`🚀 ZenChat listening on http://localhost:${env.PORT}`);
     console.log(`   Health check: http://localhost:${env.PORT}/health`);
+    if (env.NODE_ENV === 'production' && env.CLIENT_ORIGIN === '*') {
+      console.warn(
+        '   ⚠️  CLIENT_ORIGIN is "*" in production — any origin can read API responses. ' +
+          'Set CLIENT_ORIGIN to your client origin(s) (comma-separated).',
+      );
+    }
   });
 }
 

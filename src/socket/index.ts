@@ -11,11 +11,32 @@ interface TypingPayload {
   typing: boolean;
 }
 
+/** Maximum concurrent socket connections per IP (rejects connection churn abuse). */
+const MAX_CONNECTIONS_PER_IP = 20;
+
 export function attachSocket(server: HttpServer): Server {
   const io = new Server(server, {
     cors: { origin: env.CLIENT_ORIGIN === '*' ? true : env.CLIENT_ORIGIN.split(',') },
   });
   hub.init(io);
+
+  // Per-IP connection cap (checked before auth so unauthenticated churn is limited too).
+  const connectionsPerIp = new Map<string, number>();
+  io.use((socket, next) => {
+    const ip = socket.handshake.address;
+    const count = connectionsPerIp.get(ip) ?? 0;
+    if (count >= MAX_CONNECTIONS_PER_IP) {
+      next(new Error('Too many connections'));
+      return;
+    }
+    connectionsPerIp.set(ip, count + 1);
+    socket.on('disconnect', () => {
+      const remaining = (connectionsPerIp.get(ip) ?? 1) - 1;
+      if (remaining <= 0) connectionsPerIp.delete(ip);
+      else connectionsPerIp.set(ip, remaining);
+    });
+    next();
+  });
 
   // Auth: clients must send `{ auth: { token: <accessToken> } }` in the handshake.
   io.use(async (socket, next) => {
