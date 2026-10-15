@@ -1,0 +1,15 @@
+export const EVENTS = {
+  CONVERSATION_NEW: 'conversation:new',
+  CONVERSATION_UPDATED: 'conversation:updated',
+  CONVERSATION_MEMBER_LEFT: 'conversation:member-left',
+  CONVERSATION_DELETED: 'conversation:deleted',
+  MESSAGE_NEW: 'message:new',
+  MESSAGE_UPDATED: 'message:updated',
+  MESSAGE_DELETED: 'message:deleted',
+  MESSAGES_READ: 'messages:read',
+  TYPING: 'typing',
+  PRESENCE_UPDATE: 'presence:update',
+  FRIEND_REQUEST: 'friend:request',
+  FRIEND_RESPONSE: 'friend:response',
+  FRIEND_REMOVED: 'friend:removed',
+} as const;

@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  username     String    @unique
+  passwordHash String
+  displayName  String?
+  avatarUrl    String?
+  bio          String?
+  online       Boolean   @default(false)
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships      ConversationMember[]
+  messages         Message[]
+  sentFriends      Friendship[]      @relation("sender")
+  receivedFriends  Friendship[]      @relation("receiver")
+  refreshTokens    RefreshToken[]
+  readReceipts     ReadReceipt[]
+  createdConversations Conversation[] @relation("creator")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Conversation {
+  id          String           @id @default(cuid())
+  type        ConversationType @default(DIRECT)
+  name        String?
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  creator  User                 @relation("creator", fields: [createdById], references: [id])
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([type])
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+model ConversationMember {
+  id             String     @id @default(cuid())
+  conversationId String
+  userId         String
+  role           MemberRole @default(MEMBER)
+  joinedAt       DateTime   @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String?
+  type           MessageType   @default(TEXT)
+  edited         Boolean       @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  readReceipts ReadReceipt[]
+  attachments  Attachment[]
+
+  @@index([conversationId, createdAt])
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
+model ReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+model Attachment {
+  id        String  @id @default(cuid())
+  messageId String
+  kind      String
+  fileName  String
+  mimeType  String
+  size      Int
+  url       String
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model Friendship {
+  id         String           @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  sender   User @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
